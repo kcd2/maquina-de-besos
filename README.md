@@ -2,7 +2,7 @@
 
 Una pequeña página privada para mandarnos besos con un toque al corazón.
 
-La interfaz se publica como sitio estático en GitHub Pages. Las cuentas, la unión de las dos cuentas y el correo se gestionan con Supabase y una Supabase Edge Function que envía el mensaje con Resend. Las claves de servidor viven en Supabase, nunca en este repositorio.
+La interfaz se publica como sitio estático en GitHub Pages. Las cuentas, la unión de las dos cuentas y el envío de besos se gestionan con Supabase. Una Supabase Edge Function valida la pareja y llama a EmailJS para enviar el correo usando el servicio Gmail conectado en tu cuenta de EmailJS.
 
 ## Estado
 
@@ -31,12 +31,20 @@ La interfaz está lista. Para que funcionen el registro, el inicio de sesión y 
 
 ## Preparar el envío de correos
 
-1. Crea una cuenta en Resend y verifica un dominio o subdominio que puedas usar como remitente.
-2. Instala Supabase CLI siguiendo su documentación oficial, inicia sesión y enlaza este proyecto local con el proyecto de Supabase.
-3. Guarda como secrets de Supabase Edge Functions `RESEND_API_KEY` y `EMAIL_FROM` (por ejemplo, `Besitos <besitos@correo.tudominio.com>`). `SUPABASE_URL`, `SUPABASE_ANON_KEY` y `SUPABASE_SERVICE_ROLE_KEY` deben estar disponibles para la función; si tu proyecto no los expone automáticamente, configúralos también como secrets.
-4. Despliega la función `couple` desde esta carpeta con Supabase CLI.
+1. Crea una cuenta en EmailJS y conecta el Gmail que quieras usar como remitente desde **Email Services → Add New Service**. No necesitas comprar un dominio para este flujo.
+2. Crea una plantilla desde **Email Templates**. Configura **To Email** como `{{to_email}}`, **From Name** como `{{from_name}}` y deja seleccionado **Use Default Email Address**. En el contenido puedes usar `{{from_name}}` y `{{message}}`. Deja **Reply To**, **Bcc** y **Cc** vacíos si no los necesitas.
+3. Copia el **Service ID**, el **Template ID** y la **Public Key** de EmailJS. Actualiza las constantes `EMAILJS_SERVICE_ID`, `EMAILJS_TEMPLATE_ID` y `EMAILJS_PUBLIC_KEY` al principio de `supabase/functions/couple/index.ts`. Estos identificadores y la Public Key de EmailJS identifican la integración; no pongas aquí contraseñas, la Private Key de EmailJS ni claves secretas de Supabase.
+4. En **Account → Security** de EmailJS, activa el acceso para solicitudes desde entornos no navegador y la autorización con **Private Key**. Copia la Private Key y guárdala como secreto `EMAILJS_PRIVATE_KEY` en **Supabase → Edge Functions → Secrets**. Nunca la añadas al repositorio ni la compartas en capturas o mensajes.
+5. Para que solo las dos cuentas de la pareja puedan usar la función, añade también el secreto `ALLOWED_USER_EMAILS` en **Supabase → Edge Functions → Secrets**. Como valor, escribe los dos correos autorizados separados por una coma, sin espacios si quieres; por ejemplo: `persona1@correo.com,persona2@correo.com`. Si una de las cuentas cambia de correo, actualiza este secreto.
+6. Instala Supabase CLI si aún no la tienes, inicia sesión y enlaza esta carpeta con el proyecto de Supabase. Después despliega la función actualizada:
 
-La función valida el token de la usuaria, busca la otra cuenta conectada y envía el correo. El cliente nunca recibe la clave de Resend ni la clave de servicio de Supabase.
+   ```sh
+   supabase login
+   supabase link --project-ref jhyblpmdspyuhtvfuikp
+   supabase functions deploy couple
+   ```
+
+La función valida la sesión, obtiene el correo de la otra cuenta conectada desde Supabase y lo pasa como destinatario a la plantilla. La clave de servicio de Supabase nunca se incluye en el repositorio ni se envía al navegador.
 
 ## Publicar en GitHub Pages
 

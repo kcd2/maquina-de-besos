@@ -113,9 +113,9 @@ function renderAuth() {
       <p class="lede">Un corazón, un toque y un recordatorio suave de que estoy pensando en ti.</p>
       <div class="panel">
         ${!isConfigured ? configMessage() : ''}
-        <div class="auth-tabs" role="tablist" aria-label="Acceso a la cuenta">
-          <button class="auth-tab" id="signup-tab" role="tab" aria-selected="${isSignup}" type="button">Crear cuenta</button>
-          <button class="auth-tab" id="login-tab" role="tab" aria-selected="${!isSignup}" type="button">Iniciar sesión</button>
+        <div class="auth-tabs" aria-label="Acceso a la cuenta">
+          <button class="auth-tab" id="signup-tab" aria-pressed="${isSignup}" type="button">Crear cuenta</button>
+          <button class="auth-tab" id="login-tab" aria-pressed="${!isSignup}" type="button">Iniciar sesión</button>
         </div>
         <form id="auth-form" novalidate>
           ${isSignup ? `<div class="field"><label for="display-name">¿Cómo te llamas?</label><input id="display-name" name="displayName" autocomplete="name" maxlength="40" placeholder="Tu nombre o apodo" required /></div>` : ''}
@@ -139,6 +139,8 @@ async function submitAuth(event) {
   const password = String(form.get('password') || '')
   setBusy(true)
   try {
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) throw new Error('Escribe una dirección de correo válida.')
+    if (password.length < 8) throw new Error('La contraseña debe tener al menos 8 caracteres.')
     if (authMode === 'signup') {
       const displayName = String(form.get('displayName') || '').trim()
       if (!displayName) throw new Error('Escribe tu nombre o apodo para crear la cuenta.')
@@ -167,6 +169,7 @@ function friendlyError(message) {
   if (/already registered|user already registered/i.test(message)) return 'Ese correo ya tiene una cuenta. Prueba a iniciar sesión.'
   if (/password.*(weak|short|least)/i.test(message)) return 'La contraseña es demasiado corta; prueba con una de al menos 8 caracteres.'
   if (/email not confirmed/i.test(message)) return 'Primero confirma tu correo desde el mensaje que te envió Supabase.'
+  if (/email rate limit|too many requests/i.test(message)) return 'Se han hecho demasiados intentos seguidos. Espera un poco y vuelve a probar.'
   if (/failed to fetch/i.test(message)) return 'No se pudo conectar. Revisa la configuración de Supabase y tu conexión.'
   return message
 }
@@ -324,18 +327,25 @@ async function sendKiss() {
   heart.classList.remove('is-sending')
   void heart.offsetWidth
   heart.classList.add('is-sending')
-  spawnSparks()
+  heart.setAttribute('aria-busy', 'true')
   try {
     await callCoupleFunction({ action: 'send-kiss', message })
+    spawnSparks()
     messageBox.textContent = message
     messageBox.classList.add('active')
     showToast('Besito enviado. Ya va de camino a su correo. 💌')
   } catch (error) {
-    showToast(friendlyError(error.message))
+    const friendlyMessage = friendlyError(error.message)
+    messageBox.textContent = friendlyMessage
+    messageBox.classList.add('active')
+    showToast(friendlyMessage)
   } finally {
     setBusy(false)
     const currentHeart = document.querySelector('#kiss-button')
-    if (currentHeart) currentHeart.classList.remove('is-sending')
+    if (currentHeart) {
+      currentHeart.classList.remove('is-sending')
+      currentHeart.removeAttribute('aria-busy')
+    }
   }
 }
 
