@@ -68,6 +68,14 @@ function saveSession(nextSession) {
   logoutButton.classList.toggle('hidden', !session?.access_token)
 }
 
+async function renewSession(savedSession) {
+  if (!savedSession?.refresh_token) throw new Error('No hay una sesión que se pueda renovar.')
+  const renewed = await authRequest('token?grant_type=refresh_token', { refresh_token: savedSession.refresh_token })
+  const updated = { ...renewed, expires_at: renewed.expires_at || Math.floor(Date.now() / 1000) + (renewed.expires_in || 3600) }
+  saveSession(updated)
+  return updated
+}
+
 async function getLiveSession() {
   const stored = localStorage.getItem(SESSION_KEY)
   if (!stored) return null
@@ -76,10 +84,7 @@ async function getLiveSession() {
     const expiry = Number(saved.expires_at || 0)
     if (!saved.access_token || !saved.refresh_token) return null
     if (expiry && expiry * 1000 < Date.now() + 60_000) {
-      const renewed = await authRequest('token?grant_type=refresh_token', { refresh_token: saved.refresh_token })
-      const updated = { ...renewed, expires_at: renewed.expires_at || Math.floor(Date.now() / 1000) + (renewed.expires_in || 3600) }
-      saveSession(updated)
-      return updated
+      return await renewSession(saved)
     }
     saveSession(saved)
     return saved
@@ -90,16 +95,33 @@ async function getLiveSession() {
 }
 
 async function callCoupleFunction(payload) {
-  if (!session?.access_token) throw new Error('Tu sesión terminó. Vuelve a entrar para enviar tu besito.')
-  const response = await fetch(`${SUPABASE_URL}/functions/v1/couple`, {
+  let activeSession = await getLiveSession()
+  if (!activeSession?.access_token) throw new Error('Tu sesión terminó. Inicia sesión de nuevo para continuar.')
+
+  const sendRequest = (accessToken) => fetch(`${SUPABASE_URL}/functions/v1/couple`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
       apikey: SUPABASE_ANON_KEY,
-      Authorization: `Bearer ${session.access_token}`,
+      Authorization: `Bearer ${accessToken}`,
     },
     body: JSON.stringify(payload),
   })
+
+  let response = await sendRequest(activeSession.access_token)
+  if (response.status === 401) {
+    try {
+      activeSession = await renewSession(activeSession)
+      response = await sendRequest(activeSession.access_token)
+    } catch {
+      saveSession(null)
+      throw new Error('Tu sesión caducó. Inicia sesión de nuevo para continuar.')
+    }
+  }
+  if (response.status === 401) {
+    saveSession(null)
+    throw new Error('Tu sesión caducó. Inicia sesión de nuevo para continuar.')
+  }
   return responseJson(response)
 }
 
@@ -181,6 +203,11 @@ async function loadPairState() {
     else if (state.inviteCode) renderWaiting(state.inviteCode)
     else renderPairing()
   } catch (error) {
+    if (!session?.access_token) {
+      renderAuth()
+      showToast(friendlyError(error.message))
+      return
+    }
     renderPairing(true, error.message)
   }
 }
@@ -336,6 +363,11 @@ async function sendKiss() {
     showToast('Besito enviado. Ya va de camino a su correo. 💌')
   } catch (error) {
     const friendlyMessage = friendlyError(error.message)
+    if (!session?.access_token) {
+      renderAuth()
+      showToast(friendlyMessage)
+      return
+    }
     messageBox.textContent = friendlyMessage
     messageBox.classList.add('active')
     showToast(friendlyMessage)
