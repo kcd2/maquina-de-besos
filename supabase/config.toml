@@ -1,0 +1,4 @@
+project_id = "besitos"
+
+[functions.couple]
+verify_jwt = true
