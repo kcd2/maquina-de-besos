@@ -1,8 +1,8 @@
 // Configuración pública del cliente Supabase. La clave anon/publishable se puede
 // incluir en el frontend si las tablas están protegidas y las claves secretas
 // se guardan exclusivamente en Supabase Edge Function Secrets.
-export const SUPABASE_URL = 'https://TU-PROYECTO.supabase.co'
-export const SUPABASE_ANON_KEY = 'TU-CLAVE-PUBLICA'
+export const SUPABASE_URL = 'https://jhyblpmdspyuhtvfuikp.supabase.co'
+export const SUPABASE_ANON_KEY = 'sb_publishable_HsuxoGiYvEEW4tpgXJ8Zdw_JLUul9d7'
 
 export const KISS_MESSAGES = [
   'Te mando un beso de esos que hacen que la distancia se sienta un poquito más pequeña.',
