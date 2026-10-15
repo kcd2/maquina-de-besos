@@ -1,65 +1,128 @@
 # Besitos 💌
 
-Una pequeña página privada para mandarnos besos con un toque al corazón.
+Una pequeña página para que dos personas puedan mandarse besos a distancia. Una toca el corazón y la otra recibe un mensaje en su correo.
 
-La interfaz se publica como sitio estático en GitHub Pages. Las cuentas, la unión de las dos cuentas y el envío de besos se gestionan con Supabase. Una Supabase Edge Function valida la pareja y llama a EmailJS para enviar el correo usando el servicio Gmail conectado en tu cuenta de EmailJS.
+[Abrir la demo](https://kcd2.github.io/maquina-de-besos/) · [Ver despliegues](https://github.com/kcd2/maquina-de-besos/actions/workflows/pages.yml)
 
-## Estado
+![Estado del despliegue de GitHub Pages](https://github.com/kcd2/maquina-de-besos/actions/workflows/pages.yml/badge.svg)
 
-La interfaz está lista. Para que funcionen el registro, el inicio de sesión y los correos, hace falta completar la configuración privada que aparece más abajo.
+## Qué incluye
 
-## Preparar Supabase
+- Registro e inicio de sesión con Supabase Auth.
+- Invitación privada mediante un código para conectar dos cuentas.
+- Un corazón interactivo que envía un mensaje cariñoso al correo de la otra persona.
+- Diseño adaptable a móvil y escritorio, con soporte para movimiento reducido.
+- Publicación de la página estática mediante GitHub Pages y GitHub Actions.
 
-1. Crea un proyecto en Supabase.
-2. En **SQL Editor**, abre y ejecuta el contenido de `supabase/schema.sql`.
-3. **Autoriza las direcciones de la web para la confirmación de cuenta.** En el menú lateral entra en **Authentication → URL Configuration**. En **Site URL** pon `https://kcd2.github.io/maquina-de-besos/`. En **Redirect URLs**, añade estas dos direcciones, una por línea, y guarda:
+## Cómo funciona
 
-   ```text
-   https://kcd2.github.io/maquina-de-besos/**
-   http://localhost:8000/**
-   ```
+1. Una persona crea una cuenta y un espacio de pareja.
+2. Comparte el código de invitación en privado.
+3. La otra persona crea su cuenta y se une con ese código.
+4. Al tocar el corazón, una función de Supabase comprueba la sesión y la pareja, y solicita el envío del correo a EmailJS.
 
-   Después, en **Authentication → Sign In / Providers → Email**, comprueba que **Confirm email** está activado. Así Supabase puede mandar el enlace de confirmación y volver a la web.
-4. **Conecta el código de la web a este proyecto.** Abre **Project Settings → API Keys** (o **Project Settings → API** si esa es la sección que aparece en tu panel). Copia la **Project URL** y la clave **Publishable** (`sb_publishable_…`; en proyectos antiguos puede llamarse `anon`). Abre `config.js` en la carpeta de Descargas y reemplaza los dos textos de ejemplo:
+Cada espacio admite como máximo dos cuentas. El correo destinatario se obtiene de Supabase Auth; no se acepta desde el navegador.
 
-   ```js
-   export const SUPABASE_URL = 'https://jhyblpmdspyuhtvfuikp.supabase.co'
-   export const SUPABASE_ANON_KEY = 'PEGA_AQUI_TU_CLAVE_PUBLICA'
-   ```
+## Tecnologías
 
-   La URL de ejemplo ya corresponde al identificador de tu proyecto; copia la clave pública desde tu propio panel. Aunque la variable del código se llame `SUPABASE_ANON_KEY`, puedes pegar ahí la clave nueva `Publishable`. **No pegues nunca una clave `Secret`/`service_role` en `config.js`, en GitHub ni en este chat.** Esas claves dan acceso privilegiado y van únicamente en los secrets de la función privada de Supabase.
+- HTML, CSS y JavaScript sin framework ni paso de compilación.
+- Supabase Auth, Postgres y Edge Functions.
+- EmailJS para enviar los mensajes usando un servicio de correo conectado.
+- GitHub Pages para alojar la web y GitHub Actions para publicarla.
 
-## Preparar el envío de correos
+## Estructura del proyecto
 
-1. Crea una cuenta en EmailJS y conecta el Gmail que quieras usar como remitente desde **Email Services → Add New Service**. No necesitas comprar un dominio para este flujo.
-2. Crea una plantilla desde **Email Templates**. Configura **To Email** como `{{to_email}}`, **From Name** como `{{from_name}}` y deja seleccionado **Use Default Email Address**. En el contenido puedes usar `{{from_name}}` y `{{message}}`. Deja **Reply To**, **Bcc** y **Cc** vacíos si no los necesitas.
-3. Copia el **Service ID**, el **Template ID** y la **Public Key** de EmailJS. Actualiza las constantes `EMAILJS_SERVICE_ID`, `EMAILJS_TEMPLATE_ID` y `EMAILJS_PUBLIC_KEY` al principio de `supabase/functions/couple/index.ts`. Estos identificadores y la Public Key de EmailJS identifican la integración; no pongas aquí contraseñas, la Private Key de EmailJS ni claves secretas de Supabase.
-4. En **Account → Security** de EmailJS, activa el acceso para solicitudes desde entornos no navegador y la autorización con **Private Key**. Copia la Private Key y guárdala como secreto `EMAILJS_PRIVATE_KEY` en **Supabase → Edge Functions → Secrets**. Nunca la añadas al repositorio ni la compartas en capturas o mensajes.
-5. Para que solo las dos cuentas de la pareja puedan usar la función, añade también el secreto `ALLOWED_USER_EMAILS` en **Supabase → Edge Functions → Secrets**. Como valor, escribe los dos correos autorizados separados por una coma, sin espacios si quieres; por ejemplo: `persona1@correo.com,persona2@correo.com`. Si una de las cuentas cambia de correo, actualiza este secreto.
-6. Instala Supabase CLI si aún no la tienes, inicia sesión y enlaza esta carpeta con el proyecto de Supabase. Después despliega la función actualizada:
-
-   ```sh
-   supabase login
-   supabase link --project-ref jhyblpmdspyuhtvfuikp
-   supabase functions deploy couple
-   ```
-
-La función valida la sesión, obtiene el correo de la otra cuenta conectada desde Supabase y lo pasa como destinatario a la plantilla. La clave de servicio de Supabase nunca se incluye en el repositorio ni se envía al navegador.
-
-## Publicar en GitHub Pages
-
-1. En GitHub, abre **Settings → Pages** y selecciona **GitHub Actions** como origen.
-2. Sube este proyecto a la rama `main`. El flujo `.github/workflows/pages.yml` publica automáticamente `index.html`, `app.js`, `styles.css` y `config.js`.
-3. Cuando Actions termine, la página estará en `https://kcd2.github.io/maquina-de-besos/`.
+```text
+.
+├── .github/workflows/pages.yml   # Publicación en GitHub Pages
+├── app.js                        # Registro, invitaciones y corazón
+├── config.js                     # Supabase público y mensajes
+├── index.html                    # Página principal
+├── styles.css                    # Estilos responsive y animaciones
+└── supabase/
+    ├── schema.sql                # Tablas y protección de la base de datos
+    └── functions/couple/index.ts # Función segura para parejas y correos
+```
 
 ## Probar en local
 
-Desde esta carpeta puedes ejecutar `py -m http.server 8000` y abrir `http://localhost:8000/`. Configura también esta URL como permitida en la autenticación de Supabase. Para terminar el servidor, pulsa `Ctrl+C` en esa terminal.
+Necesitas Python 3. Desde la carpeta del proyecto, inicia un servidor estático:
 
-## Privacidad
+```bash
+# Windows
+py -m http.server 8000
 
-- El repositorio y la interfaz son públicos, pero no deben contener datos de inicio de sesión ni secretos.
-- La función Edge limita cada espacio de pareja a dos cuentas y no permite al navegador leer directamente las tablas privadas.
-- Los correos de ambas se almacenan en Supabase Auth. Revisa las políticas de privacidad y las condiciones de los servicios que uses antes de activarlos.
+# macOS o Linux
+python3 -m http.server 8000
+```
 
+Abre <http://localhost:8000/> en el navegador. Para detener el servidor, vuelve a la terminal y pulsa `Ctrl+C`.
 
+> **Importante:** la configuración incluida en este repositorio apunta al proyecto Supabase de la demo. Probar desde `localhost` usa esas cuentas y servicios reales; un envío puede mandar un correo de verdad. Para crear tu propia versión, conecta tus propios servicios y reemplaza la configuración antes de probar.
+
+## Configurar tu propia versión
+
+### 1. Supabase
+
+1. Crea un proyecto en Supabase.
+2. En **SQL Editor**, ejecuta [`supabase/schema.sql`](supabase/schema.sql).
+3. En **Authentication → URL Configuration**, pon como **Site URL** la dirección de tu sitio. Para GitHub Pages tendrá un formato como `https://TU_USUARIO.github.io/TU_REPOSITORIO/`. En **Redirect URLs**, añade también estas direcciones y guarda:
+
+   ```text
+   https://TU_USUARIO.github.io/TU_REPOSITORIO/**
+   http://localhost:8000/**
+   ```
+4. En **Authentication → Sign In / Providers → Email**, configura la confirmación de correo y asegúrate de que la URL de retorno está permitida.
+5. Si vas a usar un proyecto Supabase distinto al de la demo, reemplaza en [`config.js`](config.js) `SUPABASE_URL` y `SUPABASE_ANON_KEY` por la URL y la clave **Publishable** de tu proyecto (en proyectos antiguos puede aparecer como `anon`). Estas son credenciales públicas de cliente; las tablas deben permanecer protegidas por RLS.
+
+No pongas una clave `Secret` o `service_role` en `config.js`, en GitHub Pages ni en el navegador.
+
+### 2. EmailJS y secretos de la función
+
+1. En EmailJS, conecta el servicio de correo que quieras usar y crea una plantilla. Configura **To Email** como `{{to_email}}`, **From Name** como `{{from_name}}` y deja **Use Default Email Address** activado. En el contenido puedes usar `{{from_name}}` y `{{message}}`.
+2. Copia el **Service ID**, el **Template ID** y la **Public Key**. Actualiza las constantes `EMAILJS_SERVICE_ID`, `EMAILJS_TEMPLATE_ID` y `EMAILJS_PUBLIC_KEY` en [`supabase/functions/couple/index.ts`](supabase/functions/couple/index.ts).
+3. En EmailJS, permite las solicitudes desde entornos no navegador y activa la autorización con **Private Key**.
+4. En el panel de Supabase, abre **Edge Functions → Secrets** y crea estos secretos:
+
+   | Nombre | Valor |
+   | --- | --- |
+   | `EMAILJS_PRIVATE_KEY` | La Private Key de EmailJS. No la publiques ni la incluyas en el código. |
+   | `ALLOWED_USER_EMAILS` | Los correos autorizados, separados por comas. Ejemplo: `persona1@correo.com,persona2@correo.com`. |
+
+   La lista `ALLOWED_USER_EMAILS` limita el uso de la función a las cuentas indicadas. Para una pareja, añade las dos direcciones que van a iniciar sesión.
+
+5. Instala o ejecuta Supabase CLI, inicia sesión, enlaza el proyecto y despliega la función desde la raíz del repositorio:
+
+   ```bash
+   npx supabase login
+   npx supabase link --project-ref TU_PROJECT_REF
+   npx supabase functions deploy couple
+   ```
+
+La función usa las variables de servidor que Supabase proporciona para validar la sesión y consultar la pareja. No copies una clave `service_role` a los archivos del sitio.
+
+### 3. GitHub Pages
+
+1. Sube el proyecto a la rama `main` de tu repositorio.
+2. En GitHub, abre **Settings → Pages** y selecciona **GitHub Actions** como origen.
+3. El flujo [`.github/workflows/pages.yml`](.github/workflows/pages.yml) publica los archivos estáticos del sitio. La Edge Function se despliega por separado con Supabase CLI, como se indica arriba.
+
+Cuando termine la acción de publicación, la URL de GitHub Pages aparecerá en **Settings → Pages**.
+
+## Personalizar los mensajes
+
+Edita la lista `KISS_MESSAGES` en [`config.js`](config.js). El asunto y el diseño del correo se editan desde la plantilla de EmailJS.
+
+## Solución de problemas
+
+- **El enlace de confirmación no vuelve a la página:** revisa **Authentication → URL Configuration** en Supabase y añade la URL exacta de GitHub Pages y la URL local.
+- **La cuenta no puede crear o unirse a un espacio:** comprueba que el correo con el que iniciaste sesión está escrito en `ALLOWED_USER_EMAILS` y vuelve a desplegar `couple` si cambiaste el código.
+- **No llega el mensaje:** consulta los logs de la función `couple` en Supabase y verifica la plantilla, el servicio de EmailJS y el secreto `EMAILJS_PRIVATE_KEY`.
+- **Gmail lo clasifica como spam:** en la cuenta receptora, marca el primer mensaje como **No es spam** y añade la dirección remitente a Contactos. La clasificación final depende del proveedor de correo.
+
+## Privacidad y seguridad
+
+- El repositorio y la web son públicos; las cuentas y los datos de las tablas se gestionan en Supabase.
+- Los secretos se guardan en **Supabase → Edge Functions → Secrets**. Nunca subas la Private Key de EmailJS, contraseñas o claves de servidor a GitHub.
+- La clave Publishable de Supabase puede aparecer en el frontend; no sustituye a las políticas RLS ni debe confundirse con una clave `Secret`/`service_role`.
+- Los correos de las cuentas se almacenan en Supabase Auth. Tenlo en cuenta antes de invitar a otra persona.
